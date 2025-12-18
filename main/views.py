@@ -52,6 +52,33 @@ class ProductListView(ListView):
         if country_id:
             queryset = queryset.filter(country_id=country_id)
         
+        condition = self.request.GET.get('condition')
+        if condition:
+            queryset = queryset.filter(condition=condition)
+        
+        min_price = self.request.GET.get('min_price')
+        max_price = self.request.GET.get('max_price')
+        if min_price:
+            queryset = queryset.filter(price__gte=min_price)
+        if max_price:
+            queryset = queryset.filter(price__lte=max_price)
+        
+        verified = self.request.GET.get('verified')
+        if verified == 'true':
+            queryset = queryset.filter(verified=True)
+        
+        search = self.request.GET.get('search')
+        if search:
+            queryset = queryset.filter(
+                Q(title__icontains=search) | 
+                Q(desc__icontains=search) |
+                Q(brand__icontains=search) |
+                Q(company__icontains=search)
+            )
+        
+        sort = self.request.GET.get('sort', '-created_at')
+        queryset = queryset.order_by(sort)
+        
         return queryset
     
     def get_context_data(self, **kwargs):
@@ -141,5 +168,3 @@ class SearchView(ListView):
         context['categories'] = ProductCategory.objects.filter(is_active=True)
         context['countries'] = Country.objects.filter(is_active=True)
         return context
-    
-    

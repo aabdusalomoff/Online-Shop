@@ -9,12 +9,11 @@ from .models import User
 
 
 class UserLoginView(LoginView):
-    """Страница входа"""
     template_name = 'accounts/page-user-login.html'
     redirect_authenticated_user = True
     
     def get_success_url(self):
-        return reverse_lazy('main:index')
+        return reverse_lazy('main:home')
     
     def form_invalid(self, form):
         messages.error(self.request, 'Неверное имя пользователя или пароль')
@@ -22,27 +21,48 @@ class UserLoginView(LoginView):
 
 
 class UserRegisterView(CreateView):
-    """Страница регистрации"""
     model = User
     template_name = 'accounts/page-user-register.html'
     fields = ['username', 'email', 'password', 'phone', 'address']
     success_url = reverse_lazy('accounts:login')
     
-    def form_valid(self, form):
-        user = form.save(commit=False)
-        user.set_password(form.cleaned_data['password'])
-        user.save()
-        messages.success(self.request, 'Регистрация успешна! Теперь вы можете войти.')
-        return super().form_valid(form)
+    def post(self, request, *args, **kwargs):
+        username = request.POST.get('username')
+        email = request.POST.get('email')
+        password = request.POST.get('password')
+        password2 = request.POST.get('password2')
+        phone = request.POST.get('phone')
+        address = request.POST.get('address')
+        
+        if password != password2:
+            messages.error(request, 'Passwords do not match!')
+            return redirect('accounts:register')
+        
+        if User.objects.filter(username=username).exists():
+            messages.error(request, 'Username already exists!')
+            return redirect('accounts:register')
+        
+        if User.objects.filter(email=email).exists():
+            messages.error(request, 'Email already exists!')
+            return redirect('accounts:register')
+        
+        user = User.objects.create_user(
+            username=username,
+            email=email,
+            password=password,
+            phone=phone,
+            address=address
+        )
+        
+        messages.success(request, 'Registration successful! You can now login.')
+        return redirect('accounts:login')
 
 
 class UserLogoutView(LogoutView):
-    """Выход из системы"""
-    next_page = reverse_lazy('main:index')
+    next_page = reverse_lazy('main:home')
 
 
 class ProfileMainView(LoginRequiredMixin, TemplateView):
-    """Главная страница профиля"""
     template_name = 'accounts/page-profile-main.html'
     login_url = reverse_lazy('accounts:login')
     
@@ -51,18 +71,16 @@ class ProfileMainView(LoginRequiredMixin, TemplateView):
         user = self.request.user
         context['user'] = user
         
-        # Здесь будут заказы когда создадите модель Order
-        context['orders_count'] = 0  # Замените на Order.objects.filter(user=user).count()
-        context['wishlist_count'] = 0  # Замените на Wishlist.objects.filter(user=user).count()
+        context['orders_count'] = 0  
+        context['wishlist_count'] = 0  
         context['awaiting_delivery'] = 0
         context['delivered_items'] = 0
-        context['recent_orders'] = []  # Замените на Order.objects.filter(user=user).order_by('-created_at')[:6]
+        context['recent_orders'] = []  
         
         return context
 
 
 class ProfileSettingView(LoginRequiredMixin, UpdateView):
-    """Настройки профиля"""
     model = User
     template_name = 'accounts/page-profile-setting.html'
     fields = ['first_name', 'last_name', 'username', 'email', 'phone', 'address', 'image']
@@ -78,7 +96,6 @@ class ProfileSettingView(LoginRequiredMixin, UpdateView):
 
 
 class ProfileAddressView(LoginRequiredMixin, TemplateView):
-    """Адреса доставки"""
     template_name = 'accounts/page-profile-address.html'
     login_url = reverse_lazy('accounts:login')
     
@@ -89,31 +106,26 @@ class ProfileAddressView(LoginRequiredMixin, TemplateView):
 
 
 class ProfileOrdersView(LoginRequiredMixin, TemplateView):
-    """История заказов"""
     template_name = 'accounts/page-profile-orders.html'
     login_url = reverse_lazy('accounts:login')
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        # Здесь будут заказы когда создадите модель Order
         context['orders'] = []
         return context
 
 
 class ProfileWishlistView(LoginRequiredMixin, TemplateView):
-    """Список желаний"""
     template_name = 'accounts/page-profile-wishlist.html'
     login_url = reverse_lazy('accounts:login')
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        # Здесь будет wishlist когда создадите модель
         context['wishlist'] = []
         return context
 
 
 class ProfileSellerView(LoginRequiredMixin, TemplateView):
-    """Профиль продавца"""
     template_name = 'accounts/page-profile-seller.html'
     login_url = reverse_lazy('accounts:login')
     
@@ -121,10 +133,8 @@ class ProfileSellerView(LoginRequiredMixin, TemplateView):
         context = super().get_context_data(**kwargs)
         user = self.request.user
         
-        # Проверяем что пользователь - продавец
         if user.status != 'seller':
             messages.warning(self.request, 'У вас нет прав продавца')
         
-        # Здесь будут товары продавца когда добавите связь
         context['products'] = []
         return context
